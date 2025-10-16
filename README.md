@@ -1,7 +1,8 @@
 # 🧾 HESK → n8n Ticket Automation
 
-This project connects a HESK Helpdesk database (MariaDB) to n8n for automated ticket monitoring and notifications (e.g., Telegram / Discord).
-It checks for new or open tickets, sends messages, and marks them as sent to prevent duplicates.
+This integration connects a [HESK Helpdesk](https://www.hesk.com/) MariaDB database to [n8n](https://n8n.io/) for real-time ticket monitoring and alert notifications (e.g., Telegram, Discord). The workflow detects new or open tickets, sends notifications, and marks tickets as notified to prevent duplicates.
+
+---
 
 ## ⚙️ System Overview
 
@@ -13,9 +14,10 @@ Stack:
 
 - 🔔 Telegram / Discord (notification targets)
 
-Purpose:
+**Goal:**  
+Automatically detect new, open, or unsent HESK tickets and promptly notify admins or support teams.
 
-> Automatically detect new or unsent HESK tickets and notify admins or support teams.
+---
 
 ## 🧠 Workflow Logic
 
@@ -106,6 +108,8 @@ GRANT UPDATE (custom50) ON hesk.hesk_tickets TO 'n8nuser'@'%';
 FLUSH PRIVILEGES;
 ```
 >This limits n8n to read tickets and update only one column (`custom50`).
+
+---
 
 ## Schedule Options
 | Schedule                            | Expression           | Description                          |
