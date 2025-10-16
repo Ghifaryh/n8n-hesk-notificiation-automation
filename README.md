@@ -120,7 +120,7 @@ FLUSH PRIVILEGES;
 - Add retry queue for failed sends.
 - Add webhook or trigger for instant push (instead of polling).
 
-##🧾 License / Notes
+## 🧾 License / Notes
 - This integration is for internal automation with HESK helpdesk.
 - It does not modify core HESK logic except custom50 column usage.
 - Tested with MariaDB 10.6+, n8n 1.70+.
