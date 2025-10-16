@@ -1,0 +1,384 @@
+{
+  "name": "Helpdesk Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Main Code",
+        "height": 592,
+        "width": 1760,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -992,
+        464
+      ],
+      "typeVersion": 1,
+      "id": "f0e38f12-5ba8-4e1a-9acd-5459a447ecd0",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 */1 * * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -960,
+        528
+      ],
+      "id": "b38e084c-449f-4a56-8e8e-3cef6fe27aeb",
+      "name": "Schedule Trigger1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a5a300a7-f0ac-4995-81f4-8ede1e2a07d1",
+              "leftValue": "={{ $json.is_today }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "252f257f-e0f0-4c32-b053-b7bb4bec0279",
+              "leftValue": "={{ $json.is_open }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "6ee5031e-391a-4a9c-9020-1a96cb1e547e",
+              "leftValue": "={{ $json.is_unsent }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -512,
+        528
+      ],
+      "id": "5afa4ba3-1a8a-4f7d-bfde-5f49c84075b5",
+      "name": "Is Today, Is Open, and is Sent yet?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  t.id,\n  t.trackid,\n  t.name        AS requester_name,\n  t.email       AS requester_email,\n  t.subject,\n  t.message,\n  t.dt          AS created_at,\n  t.lastchange  AS updated_at,\n  t.owner,\n  u.name        AS assigned_name,\n  t.assignedby,\n  t.replies,\n  t.staffreplies,\n  t.firstreplyby,\n  t.closedby,\n  t.closedat,\n  -- readable priority\n  CASE CAST(t.priority AS UNSIGNED)\n    WHEN 1 THEN 'Kritis'\n    WHEN 2 THEN 'Tinggi'\n    WHEN 3 THEN 'Menengah'\n    ELSE CONCAT('Unknown (', t.priority, ')')\n  END AS priority_name,\n  -- readable status\n  CASE t.status\n    WHEN 0 THEN 'Baru'\n    WHEN 1 THEN 'Menunggu Balasan'\n    WHEN 2 THEN 'Balasan Staff'\n    WHEN 3 THEN 'Selesai'\n    ELSE CONCAT('Unknown (', t.status, ')')\n  END AS status_name,\n  -- derived logic flags\n  (t.closedat IS NULL)           AS is_open,\n  (t.firstreplyby IS NULL)       AS is_unreplied,\n  (t.replies = 0)                AS is_no_reply,\n  (t.dt >= CURDATE()\n   AND t.dt < DATE_ADD(CURDATE(), INTERVAL 1 DAY)) AS is_today,\n  (t.custom50 IS NULL OR t.custom50 = '') AS is_unsent\nFROM hesk_tickets t\nLEFT JOIN hesk_users u ON u.id = t.owner\nWHERE\n  (\n    t.closedat IS NULL                        -- still open\n    OR (t.dt >= CURDATE()\n        AND t.dt < DATE_ADD(CURDATE(), INTERVAL 1 DAY))   -- created today\n  )\n   -- AND (t.custom50 IS NULL OR t.custom50 = '')        -- apply to BOTH branches\n  -- AND (t.owner = 1 OR t.owner IS NOT NULL)    -- filter: assigned (1 = Admin)\nORDER BY t.lastchange DESC, t.id DESC\nLIMIT 20;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        -736,
+        528
+      ],
+      "id": "55625a43-4ad0-4858-9a4c-0148e667a9df",
+      "name": "MAIN QUERY",
+      "alwaysOutputData": true,
+      "credentials": {
+        "mySql": {
+          "id": "9VVSAfOE4LRDVTq0",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Clean HESK message HTML -> plain text\nreturn items.map(item => {\n  let msg = item.json.message || '';\n\n  msg = msg\n    .replace(/<br\\s*\\/?>/gi, '\\n')     // line breaks\n    .replace(/<a[^>]*>(.*?)<\\/a>/gi, '$1') // keep link text only\n    .replace(/<[^>]*>/g, '')           // strip remaining tags\n    .replace(/&nbsp;/g, ' ')\n    .replace(/&amp;/g, '&')\n    .trim();\n\n  item.json.message_clean = msg;\n  return item;\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        512
+      ],
+      "id": "d35aaa3d-bafc-4399-8448-7153d9b40f37",
+      "name": "Message Cleanup"
+    },
+    {
+      "parameters": {
+        "chatId": "-1003166057412",
+        "text": "=```ALERT\n🎫 Tiket Helpdesk\n\n🗓️ Tanggal: {{ $json.created_at }}\n🆔 ID Tiket: {{ $json.trackid }}\n🧾 Subjek: {{ $json.subject }}\n👤 Pembuat: {{ $json.requester_name }}\n\n📩 Isi:\n{{ $json.message_clean }}\n\n\n👨‍💻 Assigned: {{ $json.assigned_name || 'Belum ditugaskan' }}\n```",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        32,
+        512
+      ],
+      "id": "45ab8d28-1405-4593-bb08-99c67d032ae5",
+      "name": "Send to Tele",
+      "webhookId": "60b86441-8a0d-44c1-afd3-6fb58c9f99bd",
+      "credentials": {
+        "telegramApi": {
+          "id": "pOvzNxMs03ROwDJK",
+          "name": "Telegram account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "content": "=```\n🎫 Tiket Helpdesk\n\n🗓️ Tanggal: {{ $json.created_at }}\n🆔 ID Tiket: {{ $json.trackid }}\n🧾 Subjek: {{ $json.subject }}\n👤 Pembuat: {{ $json.requester_name }}\n\n📩 Isi:\n{{ $json.message_clean }}\n\n\n👨‍💻 Assigned: {{ $json.assigned_name || 'Belum ditugaskan' }}\n```",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        32,
+        672
+      ],
+      "id": "0451abbb-57ef-45ec-848d-a864e1edf0a1",
+      "name": "Send to Discord",
+      "webhookId": "efecc8e1-2fd6-4c13-8194-d401052e424d",
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "yNzGVTEHA13HqHXU",
+          "name": "Discord Webhook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "9ff34a43-7500-4a96-a9c1-f7160b390f69",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "a1b5b0b4-9681-4c9c-a1bc-b9c1e7a3bc8c",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        288,
+        512
+      ],
+      "id": "15e14e6c-6d53-4a73-a3bf-bd2af4db439f",
+      "name": "If WORK"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE hesk_tickets\nSET custom50 = '1'\nWHERE id = {{ $('MAIN QUERY').item.json.id }};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        560,
+        496
+      ],
+      "id": "49dbdce9-c898-4ec6-8cc1-c04393f32a5a",
+      "name": "Update the Database",
+      "credentials": {
+        "mySql": {
+          "id": "9VVSAfOE4LRDVTq0",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Text",
+        "text": "=```Alert\n🎫 Tiket Helpdesk\n\n🗓️ Tanggal: {{ $json.created_at }}\n🆔 ID Tiket: {{ $json.trackid }}\n🧾 Subjek: {{ $json.subject }}\n👤 Pembuat: {{ $json.requester_name }}\n\n📩 Isi:\n{{ $json.message_clean }}\n\n\n👨‍💻 Assigned: {{ $json.assigned_name || 'Belum ditugaskan' }}\n```",
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-waha.WAHA",
+      "typeVersion": 202411,
+      "position": [
+        32,
+        864
+      ],
+      "id": "2d32bcd5-9ab6-407c-b7bf-16877d589706",
+      "name": "Send a text message"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE hesk_tickets\nSET custom50 = ''\nWHERE id = 578;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        -304,
+        304
+      ],
+      "id": "7cfc7d64-7276-4085-9978-e5c2e8fca438",
+      "name": "Revert update for testing",
+      "credentials": {
+        "mySql": {
+          "id": "9VVSAfOE4LRDVTq0",
+          "name": "MySQL account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger1": {
+      "main": [
+        [
+          {
+            "node": "MAIN QUERY",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Today, Is Open, and is Sent yet?": {
+      "main": [
+        [
+          {
+            "node": "Message Cleanup",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "MAIN QUERY": {
+      "main": [
+        [
+          {
+            "node": "Is Today, Is Open, and is Sent yet?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message Cleanup": {
+      "main": [
+        [
+          {
+            "node": "Send to Tele",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send to Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Tele": {
+      "main": [
+        [
+          {
+            "node": "If WORK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Discord": {
+      "main": [
+        [
+          {
+            "node": "If WORK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If WORK": {
+      "main": [
+        [
+          {
+            "node": "Update the Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": -1,
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "timeSavedPerExecution": 10
+  },
+  "versionId": "db726357-d07c-4a08-b0a5-714151da55e8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "daa1dccdaf91ac4ff77b2bb87e4feaeb6d469bd5f15e4c1673a08f642e3172d3"
+  },
+  "id": "JnwLBU2XbwsiGLZj",
+  "tags": [
+    {
+      "createdAt": "2025-10-13T05:19:31.816Z",
+      "updatedAt": "2025-10-13T05:19:31.816Z",
+      "id": "P3IGcvEp0JB969NG",
+      "name": "Production"
+    }
+  ]
+}
