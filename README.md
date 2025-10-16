@@ -72,19 +72,20 @@ Purpose:
    - Sends formatted message:
       
         ```markdown
-          *Tiket Helpdesk*
-  
-          🗓️ Tanggal: 16-10-2025 09:57
-          🆔 ID Tiket: TSS-7EM-ADZA
-          📧 Pembuat: Gip-test
-          🧵 Subjek: Testing (do not open)
-          🔥 Prioritas: Tinggi
-          
-          💬 Pesan:
-          --------------------------------------------------
-          do not open this
-          --------------------------------------------------
-          👤 Assigned: Administrator
+         ```ALERT
+         🎫 Tiket Helpdesk
+         
+         🗓️ Tanggal: 2025-10-16 11:47:16
+         🆔 ID Tiket: ET5-ZS6-ZJUZ
+         🧾 Subjek: testing FINAL
+         👤 Pembuat: Gip-test
+         
+         📩 Isi:
+         TESTING INSTANT NOTIFICATION
+         
+         
+         👨‍💻 Assigned: Admin
+         ```
         ```
 **4. Update Node**
   - Mark ticket as sent once notification suceeds:
