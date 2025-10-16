@@ -21,7 +21,7 @@ Purpose:
 
 **1. Scheduler Trigger**
    - Runs periodically (cron-based).
-   - Default: every 1 minutes, weekdays.
+   - Default: every 1 minutes.
      ```cron
       0 */1 * * * 1-5
      ```
